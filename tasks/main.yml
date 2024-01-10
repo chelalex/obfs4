@@ -1,0 +1,47 @@
+---
+# tasks file for obfs4
+- name: OBFS4 | Check architecture
+  ansible.builtin.shell: dpkg --print-architecture
+  register: architecture
+
+- name: OBFS4 | Check OS codename
+  ansible.builtin.shell: lsb_release -c | awk '{print $2}'
+  register: os_codename
+
+- name: OBFS4 | Copy tor list of repos
+  ansible.builtin.template:
+    src: tor.list.j2
+    dest: /etc/apt/sources.list.d/tor.list
+  become: true
+
+- name: OBFS4 | Add gpg key
+  ansible.builtin.shell: "wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | tee /usr/share/keyrings/tor-archive-keyring.gpg >/dev/null"
+  become: true
+
+- name: OBFS4 | Run the equivalent of "apt-get update" as a separate step
+  ansible.builtin.apt:
+    update_cache: yes
+  become: true
+
+- name: OBFS4 | Install necessary packages
+  ansible.builtin.apt:
+    pkg:
+      - apt-transport-https
+      - tor
+      - deb.torproject.org-keyring
+      - obfs4proxy
+  become: true
+
+- name: OBFS4 | Copy torrc file
+  ansible.builtin.copy:
+    src: torrc
+    dest: /etc/tor/torrc
+    owner: root
+    mode: 0644
+  become: true
+
+- name: OBFS4 | Restart tor service
+  ansible.builtin.systemd:
+    name: tor
+    state: restarted
+  become: true
